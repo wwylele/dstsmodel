@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-half = "2.1"
-quick-xml = "0.36"
-nalgebra-glm = { version = "0.19", features = ["serde-serialize"] }
+half = "2.6"
+quick-xml = "0.38"
+nalgebra-glm = { version = "0.20", features = ["serde-serialize"] }
 nalgebra = "*"

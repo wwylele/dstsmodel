@@ -37,21 +37,46 @@ fn main() -> anyhow::Result<()> {
 
     let material_id = file.read_u32()?;
     let unk44 = file.read_u32()?;
-    let offset_mesh = file.read_u64()?;
+    let offset_mesh = file.read_u64()?; // 0x356284 ~ 0x358140
     let offset_material = file.read_u64()?;
-    let offset_light = file.read_u64()?;
-    let offset_camera = file.read_u64()?;
+    let offset_light = file.read_u64()?; // 0
+    let offset_camera = file.read_u64()?; // 0
     let offset_inv_matrix = file.read_u64()?;
-    let offset_unk70 = file.read_u64()?;
+    let offset_unk70 = file.read_u64()?; // 0
     let offset_string_table = file.read_u64()?;
-    let offset_unk80 = file.read_u64()?;
-    let offset_unk88 = file.read_u64()?;
-    let offset_unk90 = file.read_u64()?;
+    let offset_unk80 = file.read_u64()?; // unexplored, 0x3588c0 ~ 0x358cdc
+    let offset_unk88 = file.read_u64()?; // 0
+    let offset_name = file.read_u64()?;
     let offset_tree = file.read_u64()?;
-    let offset_unka0 = file.read_u64()?;
+    let offset_unka0 = file.read_u64()?; // 0
 
-    file.seek_noop(offset_unk90)?;
+    // Note on offset_unk80
+    //   This data appears to be 16 (potentially useful?) bytes followed by every byte value repeated x4,
+    //   then 12 bytes of something
 
+    file.seek_noop(offset_name)?;
+
+    let num_bone_name = file.read_u32()?;
+    let num_material_name = file.read_u32()?;
+    let offset_bone_name = file.read_u64()?;
+    let offset_material_name = file.read_u64()?;
+    if num_bone_name != num_bones as u32 {
+        bail!("num_bone_name");
+    }
+    // sometimes broken
+    /*if num_material_name != num_mesh as u32 {
+        bail!("num_material_name");
+    }*/
+    let mut bone_material_offset: Vec<u64> = Vec::new();
+    for _ in 0..num_bones {
+        bone_material_offset.push(file.read_u64()?)
+    }
+    let mut mesh_name_offset: Vec<u64> = Vec::new();
+    for _ in 0..num_mesh {
+        mesh_name_offset.push(file.read_u64()?)
+    }
+
+    // Sometimes something in between...
     file.seek(SeekFrom::Start(offset_mesh))?;
 
     struct Attr {
@@ -75,11 +100,14 @@ fn main() -> anyhow::Result<()> {
         vertex_size: u32,
         num_vertex: u32,
         num_index: u32,
+        name_offset: u64,
 
         vertexs: Vec<Vec<u8>>,
         bone_map: Vec<u32>,
         indexs: Vec<u16>,
         attrs: Vec<Attr>,
+
+        name: String,
     }
 
     let mut meshs: Vec<InMesh> = Vec::new();
@@ -95,19 +123,18 @@ fn main() -> anyhow::Result<()> {
         let num_attr = file.read_u16()?;
         let vertex_size = file.read_u32()?;
 
-        let unk30 = file.read_u8()?;
-        let unk31 = file.read_u8()?;
-        let unk32 = file.read_u16()?;
+        let unk30 = file.read_u8()?; // 0x05
+        let unk31 = file.read_u8()?; // 0x04, 0x00
+        let unk32 = file.read_u16()?; // 0
         let name_hash = file.read_u32()?;
-        let unk38 = file.read_u32()?;
-        let unk3c = file.read_u32()?;
+        let name_offset = file.read_u64()?;
 
         let material_id = file.read_u32()?;
         let num_vertex = file.read_u32()?;
         let num_index = file.read_u32()?;
-        let unk4c = file.read_u32()?;
+        let unk4c = file.read_u32()?; // 0
 
-        let unk50 = file.read_u32()?;
+        let unk50 = file.read_u32()?; // 0
         let radius = file.read_f32()?;
         let center = file.read_f32vec3()?;
         let bound = file.read_f32vec3()?;
@@ -128,6 +155,7 @@ fn main() -> anyhow::Result<()> {
             vertex_size,
             num_vertex,
             num_index,
+            name_offset,
             ..InMesh::default()
         };
 
@@ -171,6 +199,12 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    file.seek_noop(offset_material)?;
+    for _ in 0..num_material {
+        let name_hash = file.read_u32()?;
+        //...
+    }
+
     file.seek(SeekFrom::Start(offset_inv_matrix))?;
     let mut inv_matrixs: Vec<Mat4x4> = Vec::new();
     for _ in 0..num_bones {
@@ -182,10 +216,11 @@ fn main() -> anyhow::Result<()> {
     let tree_bytes = file.read_u32()?;
     let tree_unk8 = file.read_u32()?;
     let tree_footer_size = file.read_u32()?;
-    let tree_num_bones = file.read_u32()?;
+    let tree_num_bones = file.read_u16()?;
+    let tree_unk12 = file.read_u16()?;
     let tree_unk14 = file.read_u32()?;
-    if tree_num_bones != num_bones as u32 {
-        bail!("tree_num_bones")
+    if tree_num_bones != num_bones {
+        bail!("num_bones = {num_bones:x}, tree_num_bones = {tree_num_bones:x}")
     }
     let offset_bone = file.tell()? + file.read_u32()? as u64;
     let offset_parents = file.tell()? + file.read_u32()? as u64;
@@ -213,6 +248,7 @@ fn main() -> anyhow::Result<()> {
         parent: u16,
         children: Vec<u16>,
         name_hash: u32,
+        name: String,
     }
 
     let mut bones: Vec<Bone> = Vec::new();
@@ -233,23 +269,35 @@ fn main() -> anyhow::Result<()> {
     file.seek_noop(offset_parents)?;
     for i in 0..num_bones {
         let index = file.read_u16()? as usize;
+        let parent = rels[index].1 & 0x7FFF; // What is the high bit? see chr359
         if index >= rels.len() || rels[index].0 != i {
             bail!("Bone child {i}")
         }
-        bones[i as usize].parent = rels[index].1;
-        if rels[index].1 != 0x7FFF {
-            bones[rels[index].1 as usize].children.push(i);
+        bones[i as usize].parent = parent;
+        if parent != 0x7FFF {
+            bones[parent as usize].children.push(i);
         } else {
             root_bones.push(i)
         }
     }
-
-    file.seek_noop(offset_bone_name_hash)?;
+    // something in betwee..
+    file.seek(SeekFrom::Start(offset_bone_name_hash))?;
     for bone in &mut bones {
         bone.name_hash = file.read_u32()?;
     }
 
     file.seek_noop(offset_e)?;
+
+    for (i, bone) in bones.iter_mut().enumerate() {
+        file.seek(SeekFrom::Start(
+            offset_string_table + bone_material_offset[i],
+        ))?;
+        bone.name = file.read_u8str()?;
+    }
+    for mesh in &mut meshs {
+        file.seek(SeekFrom::Start(offset_string_table + mesh.name_offset))?;
+        mesh.name = file.read_u8str()?;
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////
 
@@ -279,7 +327,7 @@ fn main() -> anyhow::Result<()> {
             set: None,
         }];
         for (attr_i, attr) in mesh.attrs.iter().enumerate() {
-            let num = if attr.vtype == 1 && attr.num < 3 {
+            let num = if attr.vtype == 1 && attr.num > 3 {
                 3
             } else {
                 attr.num
@@ -293,7 +341,7 @@ fn main() -> anyhow::Result<()> {
                         .copied();
                     if attr.vtype == 10 {
                         bone_array = data.collect();
-                        bone_attr_num = attr.num;
+                        bone_attr_num = num;
                         continue;
                     }
                     data.map(|v| v as f32 / 255.0).collect()
@@ -325,7 +373,7 @@ fn main() -> anyhow::Result<()> {
             };
 
             if attr.vtype == 11 {
-                weight_attr_num = attr.num;
+                weight_attr_num = num;
                 weight_array = data;
                 continue;
             }
@@ -401,9 +449,9 @@ fn main() -> anyhow::Result<()> {
                 }),
                 9 => primitive_inputs.push(SharedInput {
                     semantic: "COLOR".to_owned(),
-                    source: format!("#mesh{i}-attr{attr_i}-array"),
+                    source: format!("#{source_id}"),
                     offset: 0,
-                    set: Some(0),
+                    set: None,
                 }),
 
                 _ => bail!("Unknown vtype {}", attr.vtype),
@@ -570,7 +618,7 @@ fn main() -> anyhow::Result<()> {
 
         Node {
             id: format!("bone{index}"),
-            name: format!("bone{index}"),
+            name: bone.name.clone(),
             type_: NodeType::Joint,
             matrix: Some(m),
             instance_controllers: vec![],
@@ -595,10 +643,10 @@ fn main() -> anyhow::Result<()> {
 
     let mut nodes = vec![bone_root];
 
-    for i in 0..num_mesh {
+    for (i, mesh) in meshs.iter().enumerate() {
         nodes.push(Node {
             id: format!("mesh{i}-node"),
-            name: format!("mesh{i}-node"),
+            name: mesh.name.clone(),
             type_: NodeType::Node,
             matrix: None,
             instance_controllers: vec![InstanceController {

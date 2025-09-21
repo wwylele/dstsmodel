@@ -17,7 +17,7 @@ pub enum ArrayElement {
 }
 
 impl ArrayElement {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         match self {
             ArrayElement::NameArray { id, array } => {
                 writer
@@ -44,7 +44,7 @@ pub struct Param {
 }
 
 impl Param {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("param")
             .with_attribute(("name", self.name.as_str()))
@@ -64,7 +64,7 @@ pub enum TechniqueCommonElement {
 }
 
 impl TechniqueCommonElement {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         match self {
             TechniqueCommonElement::Accessor {
                 count,
@@ -89,7 +89,7 @@ pub struct TechniqueCommon {
 }
 
 impl TechniqueCommon {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("technique_common")
             .write_inner_content(write_seq(&self.elements, TechniqueCommonElement::write))?;
@@ -105,11 +105,11 @@ pub struct Source {
 }
 
 impl Source {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("source")
             .with_attribute(("id", self.id.as_str()))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 self.array_element.write(w)?;
                 self.technique_common.write(w)?;
                 Ok(())
@@ -124,7 +124,7 @@ pub struct Input {
 }
 
 impl Input {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("input")
             .with_attribute(("semantic", self.semantic.as_str()))
@@ -140,7 +140,7 @@ pub struct Vertices {
 }
 
 impl Vertices {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("vertices")
             .with_attribute(("id", self.id.as_str()))
@@ -157,7 +157,7 @@ pub struct SharedInput {
 }
 
 impl SharedInput {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         let mut writer = writer.create_element("input");
 
         if let Some(set) = self.set {
@@ -182,13 +182,13 @@ pub enum PrimitiveElements {
 }
 
 impl PrimitiveElements {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         match self {
             PrimitiveElements::Triangles { count, inputs, p } => {
                 writer
                     .create_element("triangles")
                     .with_attribute(("count", count.to_string().as_str()))
-                    .write_inner_content(|w| -> quick_xml::Result<()> {
+                    .write_inner_content(|w| -> std::io::Result<()> {
                         write_seq(inputs, SharedInput::write)(w)?;
                         w.create_element("p")
                             .write_text_content(BytesText::new(&seq_string(p)))?;
@@ -211,21 +211,21 @@ pub enum GeometricElement {
 }
 
 impl GeometricElement {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         match self {
             GeometricElement::Mesh {
                 sources,
                 vertices,
                 primitive_elements,
             } => {
-                writer.create_element("mesh").write_inner_content(
-                    |w| -> quick_xml::Result<()> {
+                writer
+                    .create_element("mesh")
+                    .write_inner_content(|w| -> std::io::Result<()> {
                         write_seq(sources, Source::write)(w)?;
                         vertices.write(w)?;
                         write_seq(primitive_elements, PrimitiveElements::write)(w)?;
                         Ok(())
-                    },
-                )?;
+                    })?;
                 Ok(())
             }
         }
@@ -238,11 +238,11 @@ pub struct Geometry {
 }
 
 impl Geometry {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("geometry")
             .with_attribute(("id", self.id.as_str()))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 self.geometric_element.write(w)?;
                 Ok(())
             })?;
@@ -255,7 +255,7 @@ pub struct InstanceGeometry {
 }
 
 impl InstanceGeometry {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("instance_geometry")
             .with_attribute(("url", self.url.as_str()))
@@ -270,11 +270,11 @@ pub struct InstanceController {
 }
 
 impl InstanceController {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("instance_controller")
             .with_attribute(("url", self.url.as_str()))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 for skeleton in &self.skeletons {
                     w.create_element("skeleton")
                         .write_text_content(BytesText::new(skeleton))?;
@@ -300,7 +300,7 @@ pub struct Node {
     pub nodes: Vec<Node>,
 }
 
-fn write_matrix(matrix: &Mat4x4, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+fn write_matrix(matrix: &Mat4x4, writer: &mut Writer<File>) -> std::io::Result<()> {
     let strings: Vec<String> = matrix
         .row_iter()
         .flat_map(|r| r.into_iter().map(|e| e.to_string()).collect::<Vec<_>>())
@@ -313,7 +313,7 @@ fn write_matrix(matrix: &Mat4x4, writer: &mut Writer<File>) -> quick_xml::Result
 }
 
 impl Node {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         let type_str = match self.type_ {
             NodeType::Node => "NODE",
             NodeType::Joint => "JOINT",
@@ -324,7 +324,7 @@ impl Node {
             .with_attribute(("name", self.name.as_str()))
             .with_attribute(("sid", self.id.as_str()))
             .with_attribute(("node", type_str))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 if let Some(matrix) = &self.matrix {
                     write_matrix(matrix, w)?;
                 }
@@ -343,7 +343,7 @@ pub struct VisualScene {
 }
 
 impl VisualScene {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("visual_scene")
             .with_attribute(("id", self.id.as_str()))
@@ -357,7 +357,7 @@ pub struct Joints {
 }
 
 impl Joints {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("joints")
             .write_inner_content(write_seq(&self.inputs, Input::write))?;
@@ -373,11 +373,11 @@ pub struct VertexWeights {
 }
 
 impl VertexWeights {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("vertex_weights")
             .with_attribute(("count", self.count.to_string().as_str()))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 write_seq(&self.inputs, SharedInput::write)(w)?;
                 w.create_element("vcount")
                     .write_text_content(BytesText::new(&seq_string(&self.vcount)))?;
@@ -397,11 +397,11 @@ pub struct Skin {
 }
 
 impl Skin {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("skin")
             .with_attribute(("source", self.source.as_str()))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 write_seq(&self.sources, Source::write)(w)?;
                 self.joints.write(w)?;
                 self.vertex_weights.write(w)?;
@@ -417,7 +417,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("controller")
             .with_attribute(("id", self.id.as_str()))
@@ -433,7 +433,7 @@ pub enum Library {
 }
 
 impl Library {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         match self {
             Library::Geometries { geometries } => {
                 writer
@@ -461,10 +461,10 @@ pub struct Asset {
 }
 
 impl Asset {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("asset")
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 w.create_element("created")
                     .write_text_content(BytesText::new(&self.created))?;
                 w.create_element("modified")
@@ -481,10 +481,10 @@ pub struct Scene {
 }
 
 impl Scene {
-    fn write(&self, writer: &mut Writer<File>) -> quick_xml::Result<()> {
+    fn write(&self, writer: &mut Writer<File>) -> std::io::Result<()> {
         writer
             .create_element("scene")
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 w.create_element("instance_visual_scene")
                     .with_attribute(("url", self.instance_visual_scene.as_str()))
                     .write_empty()?;
@@ -512,7 +512,7 @@ impl Collada {
             .create_element("COLLADA")
             .with_attribute(("xmlns", "http://www.collada.org/2008/03/COLLADASchema"))
             .with_attribute(("version", "1.5.0"))
-            .write_inner_content(|w| -> quick_xml::Result<()> {
+            .write_inner_content(|w| -> std::io::Result<()> {
                 self.asset.write(w)?;
                 write_seq(&self.libraries, Library::write)(w)?;
                 self.scene.write(w)?;
@@ -525,8 +525,8 @@ impl Collada {
 
 fn write_seq<'a, E: 'a>(
     elements: &'a [E],
-    write: impl Fn(&E, &mut Writer<File>) -> quick_xml::Result<()> + 'a,
-) -> impl Fn(&mut Writer<File>) -> quick_xml::Result<()> + 'a {
+    write: impl Fn(&E, &mut Writer<File>) -> std::io::Result<()> + 'a,
+) -> impl Fn(&mut Writer<File>) -> std::io::Result<()> + 'a {
     move |w| {
         for e in elements {
             write(e, w)?
