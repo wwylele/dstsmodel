@@ -361,19 +361,22 @@ fn main() -> anyhow::Result<()> {
 
     ///////////////////////////////////////////////////////////////////////////////////
 
-    let abs_matrixs: Vec<Mat4x4> = bones
-        .iter()
-        .map(|bone| {
-            let pos = translation(&bone.position.xyz());
-            let rotation = quat_to_mat4(&Quat::from_vector(bone.rotation));
-            let scale = scaling(&bone.scale.xyz());
-            pos * rotation * scale
-        })
-        .collect();
-
     let mut controllers: Vec<Controller> = Vec::new();
     let mut geometries: Vec<Geometry> = Vec::new();
     for (i, mesh) in meshs.iter().enumerate() {
+        let mut texcoord_used: Vec<u8> = mesh
+            .attrs
+            .iter()
+            .map(|a| a.vtype)
+            .filter(|&v| v == 5 || v == 6 || v == 7)
+            .collect();
+        texcoord_used.sort_by_key(|&v| match v {
+            5 => 2,
+            6 => 0,
+            7 => 1,
+            _ => 4,
+        });
+
         let mut bone_array: Vec<u8> = Vec::new();
         let mut weight_array: Vec<f32> = Vec::new();
         let mut bone_attr_num = 0;
@@ -489,23 +492,18 @@ fn main() -> anyhow::Result<()> {
                     offset: 0,
                     set: None,
                 }),
-                5 => primitive_inputs.push(SharedInput {
+                5 | 6 | 7 => primitive_inputs.push(SharedInput {
                     semantic: "TEXCOORD".to_owned(),
                     source: format!("#{source_id}"),
                     offset: 0,
-                    set: Some(0),
-                }),
-                6 => primitive_inputs.push(SharedInput {
-                    semantic: "TEXCOORD".to_owned(),
-                    source: format!("#{source_id}"),
-                    offset: 0,
-                    set: Some(1),
-                }),
-                7 => primitive_inputs.push(SharedInput {
-                    semantic: "TEXCOORD".to_owned(),
-                    source: format!("#{source_id}"),
-                    offset: 0,
-                    set: Some(2),
+                    set: Some(
+                        texcoord_used
+                            .iter()
+                            .enumerate()
+                            .find(|(_, vtype)| **vtype == attr.vtype)
+                            .unwrap()
+                            .0 as u32,
+                    ),
                 }),
                 9 => primitive_inputs.push(SharedInput {
                     semantic: "COLOR".to_owned(),
