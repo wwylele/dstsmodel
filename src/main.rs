@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     #[derive(Default)]
-    struct InMesh {
+    struct Mesh {
         offset_vertex: u64,
         offset_index: u64,
         offset_bone_map: u64,
@@ -137,7 +137,7 @@ fn main() -> anyhow::Result<()> {
         name: String,
     }
 
-    let mut meshs: Vec<InMesh> = Vec::new();
+    let mut meshs: Vec<Mesh> = Vec::new();
     for i in 0..num_mesh {
         let offset_vertex = file.read_u64()?;
         let offset_index = file.read_u64()?;
@@ -194,7 +194,7 @@ fn main() -> anyhow::Result<()> {
             bail!("Can't deal with unk7c")
         }
 
-        let mesh = InMesh {
+        let mesh = Mesh {
             offset_vertex,
             offset_index,
             offset_bone_map,
@@ -206,7 +206,7 @@ fn main() -> anyhow::Result<()> {
             num_vertex,
             num_index,
             name_offset,
-            ..InMesh::default()
+            ..Mesh::default()
         };
 
         meshs.push(mesh)
