@@ -25,15 +25,15 @@ fn main() -> anyhow::Result<()> {
     let num_bones = file.read_u16()?;
     let num_unk = file.read_u16()?;
 
-    let unk10 = file.read_u32()?;
+    let zero10 = file.read_u32()?;
     let center = file.read_f32vec3()?;
     let bound = file.read_f32vec3()?;
-    let unk2c = file.read_u32()?;
+    let zero2c = file.read_u32()?;
 
     let unk30 = file.read_u32()?;
-    let unk34 = file.read_u32()?;
+    let zero34 = file.read_u32()?;
     let unk38 = file.read_u32()?;
-    let unk3c = file.read_u32()?;
+    let zero3c = file.read_u32()?;
 
     let material_id = file.read_u32()?;
     let unk44 = file.read_u32()?;
@@ -50,6 +50,34 @@ fn main() -> anyhow::Result<()> {
     let offset_tree = file.read_u64()?;
     let offset_unka0 = file.read_u64()?; // 0
 
+    if num_light != 0 {
+        bail!("Can't deal with light")
+    }
+    if num_camera != 0 {
+        bail!("Can't deal with light")
+    }
+    if num_unk != 0 {
+        bail!("Can't deal with num_unk")
+    }
+    if zero10 != 0 {
+        bail!("Can't deal with unk10")
+    }
+    if zero2c != 0 {
+        bail!("Can't deal with unk2c")
+    }
+    /*if unk30 != 0 {
+        bail!("Can't deal with unk30")
+    }*/
+    if zero34 != 0 {
+        bail!("Can't deal with unk34")
+    }
+    /*if unk38 != 0 {
+        bail!("Can't deal with unk38")
+    }*/
+    if zero3c != 0 {
+        bail!("Can't deal with unk3c")
+    }
+
     // Note on offset_unk80
     //   This data appears to be 16 (potentially useful?) bytes followed by every byte value repeated x4,
     //   then 12 bytes of something
@@ -63,21 +91,20 @@ fn main() -> anyhow::Result<()> {
     if num_bone_name != num_bones as u32 {
         bail!("num_bone_name");
     }
-    // sometimes broken
-    /*if num_material_name != num_mesh as u32 {
+    // isn't always right. See chr042
+    /*if num_material_name != num_material as u32 {
         bail!("num_material_name");
     }*/
     let mut bone_material_offset: Vec<u64> = Vec::new();
     for _ in 0..num_bones {
         bone_material_offset.push(file.read_u64()?)
     }
-    let mut mesh_name_offset: Vec<u64> = Vec::new();
-    for _ in 0..num_mesh {
-        mesh_name_offset.push(file.read_u64()?)
+    let mut material_name_offset: Vec<u64> = Vec::new();
+    for _ in 0..num_material_name {
+        material_name_offset.push(file.read_u64()?)
     }
 
-    // Sometimes something in between...
-    file.seek(SeekFrom::Start(offset_mesh))?;
+    file.seek_noop(offset_mesh)?;
 
     struct Attr {
         vtype: u8,
@@ -123,26 +150,49 @@ fn main() -> anyhow::Result<()> {
         let num_attr = file.read_u16()?;
         let vertex_size = file.read_u32()?;
 
-        let unk30 = file.read_u8()?; // 0x05
-        let unk31 = file.read_u8()?; // 0x04, 0x00
-        let unk32 = file.read_u16()?; // 0
+        let unk30 = file.read_u8()?; // 0, 2, 3, 4
+        let unk31 = file.read_u8()?; // 5, 1
+        println!("[{i}]{unk30}, {unk31}");
+        let zero32 = file.read_u16()?; // 0
         let name_hash = file.read_u32()?;
         let name_offset = file.read_u64()?;
 
         let material_id = file.read_u32()?;
         let num_vertex = file.read_u32()?;
         let num_index = file.read_u32()?;
-        let unk4c = file.read_u32()?; // 0
+        let zero4c = file.read_u32()?; // 0
 
-        let unk50 = file.read_u32()?; // 0
+        let zero50 = file.read_u32()?; // 0
         let radius = file.read_f32()?;
         let center = file.read_f32vec3()?;
         let bound = file.read_f32vec3()?;
 
-        let unk70 = file.read_u32()?;
-        let unk74 = file.read_u32()?;
-        let unk78 = file.read_u32()?;
-        let unk7c = file.read_u32()?;
+        let zero70 = file.read_u32()?;
+        let zero74 = file.read_u32()?;
+        let zero78 = file.read_u32()?;
+        let zero7c = file.read_u32()?;
+
+        if zero32 != 0 {
+            bail!("Can't deal with unk32")
+        }
+        if zero4c != 0 {
+            bail!("Can't deal with unk4c")
+        }
+        if zero50 != 0 {
+            bail!("Can't deal with unk50")
+        }
+        if zero70 != 0 {
+            bail!("Can't deal with unk70")
+        }
+        if zero74 != 0 {
+            bail!("Can't deal with unk74")
+        }
+        if zero78 != 0 {
+            bail!("Can't deal with unk78")
+        }
+        if zero7c != 0 {
+            bail!("Can't deal with unk7c")
+        }
 
         let mesh = InMesh {
             offset_vertex,
@@ -188,6 +238,13 @@ fn main() -> anyhow::Result<()> {
             let dtype = file.read_u8()?;
             let flags = file.read_u8()?;
             let offset = file.read_u16()?;
+            if normalize != 0 {
+                bail!("Can't deal with normalize")
+            }
+            if flags != 0 {
+                bail!("Can't deal with flags")
+            }
+            // println!("[{i}] -- {vtype} {normalize} {num} {dtype} {flags}");
             mesh.attrs.push(Attr {
                 vtype,
                 normalize,
@@ -217,7 +274,7 @@ fn main() -> anyhow::Result<()> {
     let tree_unk8 = file.read_u32()?;
     let tree_footer_size = file.read_u32()?;
     let tree_num_bones = file.read_u16()?;
-    let tree_unk12 = file.read_u16()?;
+    let tree_unk12_g = file.read_u16()?;
     let tree_unk14 = file.read_u32()?;
     if tree_num_bones != num_bones {
         bail!("num_bones = {num_bones:x}, tree_num_bones = {tree_num_bones:x}")
@@ -280,8 +337,11 @@ fn main() -> anyhow::Result<()> {
             root_bones.push(i)
         }
     }
-    // something in betwee..
-    file.seek(SeekFrom::Start(offset_bone_name_hash))?;
+
+    file.seek_assert_align_up(offset_g, 4)?;
+
+    // something in between..
+    file.seek(SeekFrom::Start(offset_bone_name_hash))?; // should align to 16
     for bone in &mut bones {
         bone.name_hash = file.read_u32()?;
     }
@@ -618,7 +678,7 @@ fn main() -> anyhow::Result<()> {
 
         Node {
             id: format!("bone{index}"),
-            name: bone.name.clone(),
+            name: format!("bone{}-{}", index, bone.name),
             type_: NodeType::Joint,
             matrix: Some(m),
             instance_controllers: vec![],
@@ -646,7 +706,7 @@ fn main() -> anyhow::Result<()> {
     for (i, mesh) in meshs.iter().enumerate() {
         nodes.push(Node {
             id: format!("mesh{i}-node"),
-            name: mesh.name.clone(),
+            name: format!("mesh{}-{}", i, mesh.name),
             type_: NodeType::Node,
             matrix: None,
             instance_controllers: vec![InstanceController {
@@ -663,7 +723,7 @@ fn main() -> anyhow::Result<()> {
         nodes,
     };
 
-    Collada {
+    let dae = Collada {
         asset: Asset {
             created: "2022-06-19T15:05:15".to_owned(),
             modified: "2022-06-19T15:05:15".to_owned(),
@@ -678,8 +738,11 @@ fn main() -> anyhow::Result<()> {
         scene: Scene {
             instance_visual_scene: "#scene".to_owned(),
         },
+    };
+
+    if args.len() > 2 {
+        dae.save(Path::new(&args[2]))?;
     }
-    .save(Path::new(&args[2]))?;
 
     Ok(())
 }
